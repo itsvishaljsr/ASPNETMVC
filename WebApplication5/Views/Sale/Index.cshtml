@@ -1,0 +1,145 @@
+﻿@model WebApplication5.Models.Sale
+
+@{
+    ViewBag.Title = "Sales Management";
+}
+
+<h2>Record a Sale</h2>
+
+@using (Html.BeginForm("Insert", "Sale", FormMethod.Post, new { id = "saleForm" }))
+{
+    <div class="form-group">
+        @Html.LabelFor(model => model.CustomerID)
+        @Html.TextBoxFor(model => model.CustomerID, new { @class = "form-control", required = "required", id = "CustomerID" })
+        <span id="customerError" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.CustomerName)
+        @Html.TextBoxFor(model => model.CustomerName, new { @class = "form-control", id = "CustomerName", @readonly = "readonly" })
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.ProductID)
+        <select id="ProductID" name="ProductID" class="form-control" required>
+            <option value="">-- Select Product --</option>
+        </select>
+        <span id="productError" class="text-danger"></span>
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.Price)
+        @Html.TextBoxFor(model => model.Price, new { @class = "form-control", id = "Price", @readonly = "readonly" })
+    </div>
+
+    <div class="form-group">
+        @Html.LabelFor(model => model.SaleDate)
+        @Html.TextBoxFor(model => model.SaleDate, new { @class = "form-control datepicker", required = "required", id = "SaleDate" })
+        <span id="dateError" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-success">Save Sale</button>
+}
+
+<h3>Sales History</h3>
+<table id="salesTable" class="table table-striped">
+    <thead>
+        <tr><th>Customer</th><th>Product</th><th>Price</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+        <!-- AJAX will populate this -->
+    </tbody>
+</table>
+
+<script>
+    $(document).ready(function(){
+        $(".datepicker").datepicker({ dateFormat: "yy-mm-dd" });
+
+        var salesTable = $('#salesTable').DataTable();
+
+        // Fetch all sales and populate table
+        $.ajax({
+            url: '@Url.Action("GetAllSales", "Sale")',
+            success: function(data) {
+                salesTable.clear();
+                $.each(data, function(index, sale) {
+                    salesTable.row.add([
+                        sale.CustomerName,
+                        sale.ProductName,
+                        sale.Price,
+                        sale.SaleDate
+                    ]).draw();
+                });
+            }
+        });
+
+        // Fetch products and populate dropdown
+        $.ajax({
+            url: '@Url.Action("GetAllProducts", "Product")',
+            success: function(data) {
+                $.each(data, function(index, product) {
+                    $('#ProductID').append($('<option>', {
+                        value: product.ProductID,
+                        text: product.ProductName
+                    }));
+                });
+            }
+        });
+
+        // Fetch Customer Name dynamically when entering CustomerID
+        $('#CustomerID').on('blur', function() {
+            var enteredCustomerID = $(this).val();
+            if (enteredCustomerID) {
+                $.ajax({
+                    url: '@Url.Action("GetCustomerName", "Sale")',
+                    data: { customerId: enteredCustomerID },
+                    success: function(data) {
+                        $('#CustomerName').val(data);
+                    }
+                });
+            }
+        });
+
+        // Fetch Product Price dynamically when selecting a product
+        $('#ProductID').on('change', function() {
+            var selectedProductID = $(this).val();
+            $.ajax({
+                url: '@Url.Action("GetProductPrice", "Sale")',
+                data: { productId: selectedProductID },
+                success: function(data) {
+                    $('#Price').val(data);
+                }
+            });
+        });
+
+        // Client-side validation before form submission
+        $('#saleForm').on('submit', function(e) {
+            var isValid = true;
+
+            if ($('#CustomerID').val() === "") {
+                $('#customerError').text("Customer ID is required.");
+                isValid = false;
+            } else {
+                $('#customerError').text("");
+            }
+
+            if ($('#ProductID').val() === "") {
+                $('#productError').text("Product selection is required.");
+                isValid = false;
+            } else {
+                $('#productError').text("");
+            }
+
+            if ($('#SaleDate').val() === "") {
+                $('#dateError').text("Sale date is required.");
+                isValid = false;
+            } else {
+                $('#dateError').text("");
+            }
+
+            if (!isValid) {
+                e.preventDefault();  // Prevent form submission if validation fails
+            }
+        });
+    });
+</script>
